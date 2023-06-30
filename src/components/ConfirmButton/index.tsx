@@ -1,4 +1,4 @@
-import { GestureHandlerRootView, RectButtonProps } from "react-native-gesture-handler";
+import { RectButtonProps } from "react-native-gesture-handler";
 import { Container, Title } from "./styles";
 
 interface ConfirmButtonProps extends RectButtonProps {
@@ -7,12 +7,10 @@ interface ConfirmButtonProps extends RectButtonProps {
 
 export function ConfirmButton({ title, ...rest }: ConfirmButtonProps) {
   return (
-    <GestureHandlerRootView>
     <Container {...rest}>
       <Title>
         {title}
       </Title>
     </Container>
-    </GestureHandlerRootView>
   )
 }

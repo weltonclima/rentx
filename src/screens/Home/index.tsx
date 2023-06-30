@@ -1,25 +1,40 @@
 
-import React from 'react';
-import { CarList, Container, Header, TotalCars } from './styles';
-
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { StatusBar } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, StatusBar } from 'react-native';
+import { FlatList } from 'react-native-gesture-handler';
 import { RFValue } from 'react-native-responsive-fontsize';
+import { useTheme } from 'styled-components';
 import Logo from '../../assets/logo.svg';
 import { Car } from '../../components/Car';
+import { Loading } from '../../components/Loading';
+import { ICar } from '../../interfaces/ICar';
+import { api } from '../../services/api';
+import { Container, Content, Header, MyCarButton, TotalCars } from './styles';
 
 export function Home() {
-  const navigation = useNavigation();
+  const [loading, setLoading] = useState(false);
+  const [cars, setCars] = useState<ICar[]>([]);
 
-  const data = {
-    brand: "AUDI",
-    name: "RS 5 Coupé",
-    rent: {
-      period: "AO DIA",
-      price: 120
-    },
-    thumbnail: "https://e7.pngegg.com/pngimages/262/890/png-clipart-audi-a5-2013-audi-rs-5-2014-audi-rs-5-sports-car-audi-sedan-car.png"
-  }
+  const navigation = useNavigation();
+  const theme = useTheme();
+
+  useEffect(() => {
+    async function fetchCars() {
+      try {
+        setLoading(true)
+        const { data } = await api.get<ICar[]>('cars');
+        setCars(data);
+
+      } catch (error) {
+        Alert.alert("Erro ao consultar carros")
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchCars();
+  }, [])
 
   return (
     <Container>
@@ -34,19 +49,35 @@ export function Home() {
           height={RFValue(12)}
         />
         <TotalCars>
-          Total 12 carros
+          Total {cars.length} carros
         </TotalCars>
       </Header>
-      <CarList
-        data={[data, data, data, data, data, data, data]}
-        keyExtractor={(item, index) => `${index}`}
-        renderItem={({ item }) =>
-          <Car
-            data={data}
-            onPress={() => navigation.navigate('CarDetails')}
+      {loading ?
+        <Loading />
+        :
+        <Content>
+          <FlatList
+            showsVerticalScrollIndicator={false}
+            data={cars}
+            keyExtractor={key => `${key.id}`}
+            renderItem={({ item }) =>
+              <Car
+                data={item}
+                onPress={() => navigation.navigate('CarDetails', item)}
+              />
+            }
           />
-        }
-      />
+          <MyCarButton
+            onPress={() => navigation.navigate("MyCars")}
+          >
+            <Ionicons
+              name='ios-car-sport'
+              size={32}
+              color={theme.color.shape}
+            />
+          </MyCarButton>
+        </Content>
+      }
     </Container>
   )
 }

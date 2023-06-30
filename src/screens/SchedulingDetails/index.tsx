@@ -9,25 +9,82 @@ import {
 } from "./styles";
 
 import { Feather } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import { StatusBar } from "react-native";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import { addDays, format, } from "date-fns";
+import { useState } from "react";
+import { Alert, StatusBar } from "react-native";
 import { RFValue } from "react-native-responsive-fontsize";
 import { useTheme } from "styled-components";
-import AccelerationSvg from "../../assets/acceleration.svg";
-import ExchangeSvg from "../../assets/exchange.svg";
-import ForceSvg from "../../assets/force.svg";
-import GasolineSvg from "../../assets/gasoline.svg";
-import PeopleSvg from "../../assets/people.svg";
-import SpeedSvg from "../../assets/speed.svg";
 import { Button } from "../../components/Button";
+import { ICar } from "../../interfaces/ICar";
+import { ISchedulesBycars } from "../../interfaces/ISchedulesBycars";
+import { ISchedulesByuser } from "../../interfaces/ISchedulesByuser";
+import { api } from "../../services/api";
+import { getAcessoryIcon } from "../../utils/getAcessoryIcon";
 
 interface SchedulingDetailsProps {
 
 }
 export function SchedulingDetails({ }: SchedulingDetailsProps) {
+  const [loading, setLoading] = useState(false);
+
   const theme = useTheme();
   const navigation = useNavigation();
-  
+  const { car, dates } = useRoute().params as {
+    car: ICar,
+    dates: string[]
+  }
+
+  const startDate = dates[0];
+  const endDate = dates[dates.length - 1]
+
+  async function handleConfirmRental() {
+    setLoading(true);
+    let unavailableDates: string[] = [];
+
+    try {
+      const { data } = await api.get<ISchedulesBycars>(`schedules_bycars/${car.id}`);
+
+      unavailableDates = data?.unavailable_dates;
+    } catch (error) { console.log({ error }) }
+
+    try {
+
+      const { data } = await api.post<ISchedulesByuser>("schedules_byuser", {
+        user_id: 1,
+        car: car,
+        startDate,
+        endDate
+      });
+
+      try {
+
+        if (unavailableDates.length) {
+          await api.put(`schedules_bycars/${car.id}`, {
+            id: car.id,
+            unavailable_dates: [...unavailableDates, ...dates]
+          });
+
+        } else {
+          await api.post(`schedules_bycars`, {
+            id: car.id,
+            unavailable_dates: dates
+          });
+        }
+        await navigation.navigate("SchedulingComplete");
+
+      } catch (error) {
+        await api.delete(`schedules_byuser/${data.id}`);
+        return Alert.alert("Não foi possível confirmar o agendamento.");
+      }
+
+    } catch (error) {
+      return Alert.alert("Não foi possível salvar o agendamento no cadastro do usuário.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <Container>
       <StatusBar
@@ -40,45 +97,28 @@ export function SchedulingDetails({ }: SchedulingDetailsProps) {
       </Header>
       <CarImages>
         <ImageSlider
-          imagesUrl={["https://e7.pngegg.com/pngimages/262/890/png-clipart-audi-a5-2013-audi-rs-5-2014-audi-rs-5-sports-car-audi-sedan-car.png"]}
+          imagesUrl={car.photos}
         />
       </CarImages>
       <Content>
         <Details>
           <Description>
-            <Brand>Lamborguini</Brand>
-            <Name>Huracan</Name>
+            <Brand>{car.brand}</Brand>
+            <Name>{car.name}</Name>
           </Description>
           <Rent>
-            <Period>Ao dia</Period>
-            <Price>R$ 580</Price>
+            <Period>{car.rent.period}</Period>
+            <Price>R$ {car.rent.price}</Price>
           </Rent>
         </Details>
         <Accessories>
-          <Accessory
-            icon={SpeedSvg}
-            name="380km/h"
-          />
-          <Accessory
-            icon={AccelerationSvg}
-            name="3.2s"
-          />
-          <Accessory
-            icon={ForceSvg}
-            name="800 HP"
-          />
-          <Accessory
-            icon={GasolineSvg}
-            name="Gasolina"
-          />
-          <Accessory
-            icon={ExchangeSvg}
-            name="Auto"
-          />
-          <Accessory
-            icon={PeopleSvg}
-            name="2 pessoas"
-          />
+          {car.accessories.map(acessory => (
+            <Accessory
+              key={acessory.type}
+              icon={getAcessoryIcon(acessory.type)}
+              name={acessory.name}
+            />
+          ))}
         </Accessories>
         <RentalPeriod>
           <CalendarIcon>
@@ -90,7 +130,7 @@ export function SchedulingDetails({ }: SchedulingDetailsProps) {
           </CalendarIcon>
           <DateInfo>
             <DateTitle>DE</DateTitle>
-            <DateValue>22/06/2023</DateValue>
+            <DateValue>{format(addDays(new Date(startDate), 1), 'dd/MM/yyyy')}</DateValue>
           </DateInfo>
           <Feather
             name="chevron-right"
@@ -99,23 +139,29 @@ export function SchedulingDetails({ }: SchedulingDetailsProps) {
           />
           <DateInfo>
             <DateTitle>ATÉ</DateTitle>
-            <DateValue>23/06/2023</DateValue>
+            <DateValue>{format(addDays(new Date(endDate), 1), 'dd/MM/yyyy')}</DateValue>
           </DateInfo>
         </RentalPeriod>
         <RentalPrice>
           <RentalPricelabel>TOTAL</RentalPricelabel>
           <RentalPriceDetails>
-            <RentalPriceQuota>R$ 580 x3 diárias</RentalPriceQuota>
-            <RentalPriceTotal>R$ 2.900</RentalPriceTotal>
+            <RentalPriceQuota>
+              R$ {car.rent.price} x{dates.length} diárias
+            </RentalPriceQuota>
+            <RentalPriceTotal>
+              {Intl.NumberFormat('pt-BR', {
+                style: 'currency', currency: 'BRL'
+              }).format(car.rent.price * dates.length)}
+            </RentalPriceTotal>
           </RentalPriceDetails>
         </RentalPrice>
-
       </Content>
       <Footer>
         <Button
           title="Alugar agora"
-          onPress={() => navigation.navigate("SchedulingComplete")}
+          onPress={handleConfirmRental}
           color={theme.color.success}
+          loading={loading}
         />
       </Footer>
     </Container>
