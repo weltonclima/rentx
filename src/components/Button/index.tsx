@@ -14,7 +14,7 @@ export function Button({
 }: ButtonProps) {
 
   const theme = useTheme();
-  console.log(rest, { loading })
+
   return (
     <Container {...rest}
       color={color}

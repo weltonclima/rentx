@@ -9,7 +9,6 @@ import {
   Inter_500Medium,
   Inter_600SemiBold
 } from '@expo-google-fonts/inter';
-import AppLoading from 'expo-app-loading';
 
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider } from 'styled-components';
@@ -26,11 +25,6 @@ export default function App() {
     Inter_500Medium,
     Inter_600SemiBold
   })
-
-  if (!fontsLoaded)
-    return (
-      <AppLoading />
-    )
 
   return (
     <ThemeProvider theme={theme}>
